@@ -1,0 +1,57 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+enum JobStatus {
+  PROCESSING
+  COMPLETED
+  FAILED
+}
+
+enum EmailStatus {
+  PENDING
+  PROCESSING
+  SUCCESS
+  FAILED
+}
+
+model Job {
+  id             String    @id @default(uuid())
+  status         JobStatus @default(PROCESSING)
+  totalEmails    Int
+  processedCount Int       @default(0)
+  successCount   Int       @default(0)
+  failureCount   Int       @default(0)
+  
+  emails         Email[]
+  
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+
+  @@map("jobs")
+  @@index([status])
+}
+
+model Email {
+  id          String      @id @default(uuid())
+  jobId       String
+  job         Job         @relation(fields: [jobId], references: [id], onDelete: Cascade)
+  
+  recipient   String      @db.VarChar(255)
+  status      EmailStatus @default(PENDING)
+  retryCount  Int         @default(0)
+  order       Int
+  
+  createdAt   DateTime    @default(now())
+  updatedAt   DateTime    @updatedAt
+
+  @@map("emails")
+  @@index([jobId])
+}
