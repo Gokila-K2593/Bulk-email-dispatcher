@@ -1,76 +1,81 @@
 #  Bulk Email Dispatcher
 
-This project is a solid and reliable system for processing bulk email jobs in the background. It uses a queue system to manage the work in the background, making it very performant.
+A robust and reliable background job processing system designed for high-performance bulk email workloads. This system utilizes a distributed queue architecture to handle large-scale operations with fault tolerance and deterministic retry logic.
 
 ---
 
-##  What is implemented?
-This system simulates email processing and does not actually send real emails.
-We have built this system to follow these exact rules:
+##  Performance & Reliability Rules
 
-1.  **Concurrency = 3**:The system only sends 3 emails at a time. This prevents overloading the system.
-2.  **Retry System**: Each email job is attempted up to 4 times (1 original attempt + 3 retries) if it fails.
-3.  **Wait and Retry**: If an email fails, the system waits (1s, 2s, 4s) before trying again (**Exponential Backoff**).
-4.  **Failure Simulation**: To test the system,Every 5th email is designed to fail on all attempts, resulting in a permanent failure after exhausting retries.
-5.  **Reliability**: We use database transactions to make sure your email counts (Success/Failure/Total) are always correct.
+This system is engineered for stability and follows a strict set of operational rules:
 
----
-
-##  Technology Used
-
-- **Next.js**: For the API.
-- **PostgreSQL**: To store your jobs and email data.
-- **Redis & BullMQ**: To manage the queue.
-- **Prisma**: To talk to the database.
-- **Docker**: To run everything with one command.
+*   **Concurrency Control (3x)**: Limits processing to 3 emails simultaneously, preventing resource exhaustion and ensuring system stability.
+*   **Intelligent Retry System**: Each job is attempted up to **4 times** (1 initial + 3 retries) before being marked as failed.
+*   **Exponential Backoff**: Implements a progressive wait strategy (1s, 2s, 4s) between retries to recover from transient failures.
+*   **Deterministic Failure Simulation**: For testing purposes, every **5th email** is designed to fail consistently through all retries, allowing for verification of failure handling paths.
+*   **Atomic Data Integrity**: Leverages database transactions to guarantee that success, failure, and total counts remain accurate at all times.
 
 ---
 
-##  How to start
+##  Tech Stack
 
-You only need **Docker** installed on your computer.
+| Technology | Purpose |
 
-1.  **Clone the project** to your computer.
-2.  **Start the project**:
-    Open your terminal in the project folder and run:
-    ```bash
-    docker compose up --build
-    ```
-    *This command will start the Database, Redis, the API, and the Background Worker all at once.*
+| **Next.js** | API Layer & Orchestration |
+| **PostgreSQL** | Persistent Data Storage (Jobs & Emails) |
+| **Redis & BullMQ** | High-performance Distributed Queue Management |
+| **Prisma** | Modern Type-safe Database ORM |
+| **Docker** | One-click Containerized Deployment |
 
 ---
 
-##  How to test
+##  Getting Started
 
-Once the system is running, you can use these commands in a **new terminal**:
+The system is designed with a **"container-first"** philosophy. You only need **Docker** installed.
 
-### 1. Send a Bulk Email Request
-This will send a list of emails to the system:
+### 1. Initialize & Start
+In your terminal, navigate to the project directory and run:
+
+```bash
+docker compose up --build
+```
+> [!NOTE]
+> This command orchestrates the entire stack: Database, Redis, Next.js API, and the Background Worker.
+
+---
+
+##  Testing the Dispatcher
+
+Once the services are active, use the following commands in a new terminal to interact with the system.
+
+### 1. Dispatch a Bulk Job
+Send a POST request to initiate a batch of email processing:
+
 ```bash
 curl -X POST http://localhost:3000/api/send-bulk \
      -H "Content-Type: application/json" \
      -d '{"emails": ["user1@ex.com", "user2@ex.com", "user3@ex.com", "user4@ex.com", "user5@ex.com", "user6@ex.com"]}'
 ```
-*Wait for the response to get your **`jobId`**.*
+*Wait for the response to receive your unique **`jobId`**.*
 
-### 2. Check the Status
-Replace `<YOUR_JOB_ID>` with the ID you received above:
+### 2. Verify Job Status
+Monitor the real-time progress of your job:
+
 ```bash
 curl http://localhost:3000/api/job-status/<YOUR_JOB_ID>
 ```
-*You will see how many emails are successful, pending, or failed.*
+*Displays current success, failure, and pending counts.*
 
-### 3. See the "Worker" in action
-To see the system processing emails in real-time, run:
+### 3. Observe the Worker
+Monitor the background processing logs in real-time:
+
 ```bash
 docker compose logs -f worker
 ```
 
 ---
 
-##  Tips
-- If you see any errors in your code editor, try restarting the TypeScript server.
-- The system is built to be "containers-first," meaning it works perfectly inside Docker without you needing to install Node.js or Postgres on your host machine.
+##  Pro-Tips
 
-##  Design Note
-This system focuses on reliable background job processing (queue, retry, failure handling, and progress tracking) rather than actual email delivery.
+- **Environment**: No local Node.js or PostgreSQL installation is required; the entire environment is isolated within Docker.
+*   **Troubleshooting**: If your IDE reports TypeScript errors, simply restart the TS server (Ctrl+Shift+P > *Restart TS Server*).
+*   **Architecture**: This is a production-pattern simulation focusing on queue management, retry strategies, and data consistency rather than actual SMTP delivery.
