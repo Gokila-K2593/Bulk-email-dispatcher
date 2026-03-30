@@ -1,14 +1,9 @@
 import { Worker, Job as BullMQJob } from 'bullmq';
 import { PrismaClient } from '@prisma/client';
-import { PrismaPg } from '@prisma/adapter-pg';
-import { Pool } from 'pg';
 import { connection } from './queue';
 import 'dotenv/config';
 
-const connectionString = process.env.DATABASE_URL;
-const pool = new Pool({ connectionString });
-const adapter = new PrismaPg(pool);
-const prisma = new PrismaClient({ adapter });
+const prisma = new PrismaClient();
 
 interface EmailJobData {
   jobId: string;
@@ -32,12 +27,16 @@ export const emailWorker = new Worker<EmailJobData>(
 
     // 1. IDEMPOTENCY GUARD: Prevent duplicate processing if crashed after DB update
     const emailData = await prisma.email.findUnique({ where: { id: emailId } });
+    if (!emailData) {
+      console.error(`[WORKER] Email not found: ${emailId}`);
+      return;
+    }
     if (emailData?.status === 'SUCCESS') {
       console.warn(`[WORKER] [JOB:${jobId}] [EMAIL:${emailId}] - Already SUCCESS, skipping.`);
-      return { success: true, skipped: true };
+      return;
     }
 
-    console.log(`[WORKER] [JOB:${jobId}] [EMAIL:${emailId}] [ATTEMPT:${attempt}] - Processing started for ${recipient}`);
+    console.log(`[WORKER] [JOB:${jobId}] [EMAIL:${emailId}] [INDEX:${emailIndex}] [ATTEMPT:${attempt}] - Processing started for ${recipient}`);
 
     // Update to PROCESSING only on the first attempt to avoid redundant writes
     if (attempt === 1) {
@@ -47,7 +46,10 @@ export const emailWorker = new Worker<EmailJobData>(
       });
     }
 
-    if ((emailIndex + 1) % 5 === 0) {
+    if (emailIndex % 5 === 0) {
+      console.error(
+        `[WORKER] [JOB:${jobId}] [EMAIL:${emailId}] [INDEX:${emailIndex}] - Simulated Failure`
+      );
       throw new Error("Simulated Failure");
     }
 
@@ -56,6 +58,10 @@ export const emailWorker = new Worker<EmailJobData>(
 
     // ON SUCCESS: Atomic transaction for data consistency
     console.log(`[WORKER] [JOB:${jobId}] [EMAIL:${emailId}] [ATTEMPT:${attempt}] - Email successfully sent`);
+    await prisma.email.update({
+      where: { id: job.data.emailId },
+      data: { status: "SUCCESS" }
+    });
 
     const [updatedJob] = await prisma.$transaction([
       prisma.job.update({
@@ -110,7 +116,10 @@ emailWorker.on('failed', async (job, err) => {
   } else {
     // FINAL FAILURE logic: Atomic transaction for data consistency
     console.error(`[WORKER] [JOB:${jobId}] [EMAIL:${emailId}] - Final failure after ${attempt} attempts`);
-
+    await prisma.email.update({
+      where: { id: job.data.emailId },
+      data: { status: "FAILED" }
+    });
     const [updatedJob] = await prisma.$transaction([
       prisma.job.update({
         where: { id: jobId },

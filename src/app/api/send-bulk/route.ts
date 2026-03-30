@@ -1,6 +1,8 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '../../../lib/prisma';
 import { emailQueue } from '../../../queue';
+// import { Email } from '@prisma/client';
+
 
 export async function POST(req: Request) {
   try {
@@ -26,7 +28,7 @@ export async function POST(req: Request) {
     // In Prisma 7, createMany returns the created records count.
     // We'll create them and then fetch them or use a transaction with creates.
     // For absolute deterministic index, we'll map them carefully.
-    
+
     await prisma.email.createMany({
       data: emails.map((recipient, index) => ({
         jobId: job.id,
@@ -44,12 +46,12 @@ export async function POST(req: Request) {
 
     // 3. Push to BullMQ queue
     await Promise.all(
-      createdEmails.map((email, index) =>
+      createdEmails.map((email) =>
         emailQueue.add('bulk-email-dispatches', {
           jobId: job.id,
           emailId: email.id,
           recipient: email.recipient,
-          emailIndex: index + 1, // 1-based index
+          emailIndex: email.order, // 1-based index
         })
       )
     );
