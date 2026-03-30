@@ -27,6 +27,34 @@ This system is engineered for stability and follows a strict set of operational 
 | **Docker** | One-click Containerized Deployment |
 
 ---
+##  Queue Design & Data Structures
+
+We use BullMQ, which internally relies on Redis data structures.
+
+- **Queue (FIFO)**:
+  Jobs are processed in First-In-First-Out order using Redis Lists.
+  
+- **Delayed Jobs**:
+  Retries with backoff are managed using Redis Sorted Sets (ZSET),
+  where jobs are scheduled based on timestamps.
+
+- **Concurrency Control**:
+  Worker pulls limited jobs (3 at a time), ensuring controlled parallel execution.
+
+- **Retry Handling**:
+  Failed jobs are re-queued with delay, preserving order and retry count metadata.
+
+## Why Redis Queue?
+- In-memory queues lose data on crash
+- Redis ensures persistence and reliability
+
+## Why BullMQ?
+- Built-in retry, backoff, and job management
+- Avoids building custom queue system
+
+## Job States
+- waiting → active → completed / failed
+- Enables tracking and monitoring
 
 ##  Getting Started
 
