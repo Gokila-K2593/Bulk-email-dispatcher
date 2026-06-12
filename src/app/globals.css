@@ -163,7 +163,6 @@ body {
   padding: 1.25rem;
   display: flex;
   flex-direction: column;
-  gap: 0.75rem;
 }
 
 .sidebar-history-title {
@@ -172,10 +171,62 @@ body {
   text-transform: uppercase;
   color: var(--text-muted);
   letter-spacing: 0.05em;
-  margin-bottom: 0.25rem;
+  margin-bottom: 0.625rem;
   display: flex;
   justify-content: space-between;
   align-items: center;
+}
+
+/* Search and Filters */
+.search-input {
+  width: 100%;
+  padding: 0.5rem 0.75rem;
+  font-size: 0.8125rem;
+  border: 1px solid var(--border-color);
+  border-radius: 6px;
+  background-color: var(--bg-page);
+  color: var(--text-primary);
+  transition: all 0.2s ease;
+  margin-bottom: 0.5rem;
+}
+
+.search-input:focus {
+  outline: none;
+  border-color: var(--primary);
+  box-shadow: 0 0 0 2px rgba(79, 70, 229, 0.1);
+  background-color: var(--bg-card);
+}
+
+.filter-group {
+  display: flex;
+  gap: 0.25rem;
+  flex-wrap: wrap;
+  margin-bottom: 0.875rem;
+  border-bottom: 1px solid #f1f5f9;
+  padding-bottom: 0.625rem;
+}
+
+.filter-btn {
+  padding: 0.2rem 0.5rem;
+  font-size: 0.7rem;
+  font-weight: 600;
+  border: 1px solid var(--border-color);
+  border-radius: 9999px;
+  background-color: var(--bg-card);
+  color: var(--text-secondary);
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.filter-btn:hover {
+  background-color: var(--bg-page);
+  color: var(--text-primary);
+}
+
+.filter-btn.active {
+  background-color: var(--primary);
+  color: #ffffff;
+  border-color: var(--primary);
 }
 
 /* History List inside Sidebar */
@@ -183,6 +234,8 @@ body {
   display: flex;
   flex-direction: column;
   gap: 0.5rem;
+  overflow-y: auto;
+  flex: 1;
 }
 
 .history-item {
@@ -312,7 +365,6 @@ body {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 100%;
   padding: 0.75rem 1.25rem;
   font-size: 0.875rem;
   font-weight: 600;
@@ -323,6 +375,7 @@ body {
   cursor: pointer;
   transition: background-color 0.2s, opacity 0.2s;
   gap: 0.5rem;
+  width: 100%;
 }
 
 .btn:hover:not(:disabled) {
@@ -332,6 +385,28 @@ body {
 .btn:disabled {
   opacity: 0.6;
   cursor: not-allowed;
+}
+
+.btn-secondary {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0.625rem 1.25rem;
+  font-size: 0.8125rem;
+  font-weight: 600;
+  color: var(--text-secondary);
+  background-color: var(--bg-card);
+  border: 1px solid var(--border-color);
+  border-radius: 8px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  gap: 0.5rem;
+}
+
+.btn-secondary:hover:not(:disabled) {
+  background-color: #f8fafc;
+  color: var(--text-primary);
+  border-color: var(--text-secondary);
 }
 
 /* Empty States */
@@ -369,17 +444,30 @@ body {
   margin-top: 0.25rem;
 }
 
-.metrics-grid {
-  display: grid;
-  grid-template-columns: repeat(4, 1fr);
-  gap: 0.75rem;
+/* Monitor Split Layout (Metrics & Donut Chart side-by-side) */
+.monitor-layout {
+  display: flex;
+  gap: 2rem;
+  align-items: center;
+  justify-content: space-between;
   margin-bottom: 1.5rem;
 }
 
 @media (max-width: 640px) {
-  .metrics-grid {
-    grid-template-columns: repeat(2, 1fr);
+  .monitor-layout {
+    flex-direction: column-reverse;
+    gap: 1.5rem;
   }
+}
+
+.monitor-metrics {
+  flex: 1;
+}
+
+.metrics-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 0.75rem;
 }
 
 .metric-card {
@@ -413,6 +501,60 @@ body {
 }
 .metric-card.processing .metric-value {
   color: var(--status-processing-text);
+}
+
+/* SVG Donut Chart */
+.donut-chart-wrapper {
+  position: relative;
+  width: 130px;
+  height: 130px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.donut-chart-info {
+  position: absolute;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+}
+
+.donut-percent {
+  font-size: 1.35rem;
+  font-weight: 700;
+  color: var(--text-primary);
+  line-height: 1;
+}
+
+.donut-label {
+  font-size: 0.6rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  color: var(--text-muted);
+  margin-top: 0.25rem;
+  letter-spacing: 0.05em;
+}
+
+.donut-ring {
+  stroke: #f1f5f9;
+}
+
+.donut-segment-success {
+  stroke: #10b981;
+  transition: stroke-dashoffset 0.35s ease-in-out;
+  transform: rotate(-90deg);
+  transform-origin: 50% 50%;
+}
+
+.donut-segment-failed {
+  stroke: #ef4444;
+  transition: stroke-dashoffset 0.35s ease-in-out;
+  transform: rotate(-90deg);
+  transform-origin: 50% 50%;
 }
 
 /* Progress Bars */

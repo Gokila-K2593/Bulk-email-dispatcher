@@ -1,109 +1,75 @@
-#  Bulk Email Dispatcher
+# 📧 Bulk Email Dispatcher
 
-A robust and reliable background job processing system designed for high-performance bulk email workloads. This system utilizes a distributed queue architecture to handle large-scale operations with fault tolerance and deterministic retry logic.
+This project is a **Bulk Email Sender Simulator**. It is a tool designed to let you paste a large list of email addresses, "send" emails to all of them, and watch the sending progress update live on a dashboard. 
 
----
-
-##  Performance & Reliability Rules
-
-This system is engineered for stability and follows a strict set of operational rules:
-
-*   **Concurrency Control (3x)**: Limits processing to 3 emails simultaneously, preventing resource exhaustion and ensuring system stability.
-*   **Intelligent Retry System**: Each job is attempted up to **4 times** (1 initial + 3 retries) before being marked as failed.
-*   **Exponential Backoff**: Implements a progressive wait strategy (1s, 2s, 4s) between retries to recover from transient failures.
-*   **Deterministic Failure Simulation**: For testing purposes, every **5th email** is designed to fail consistently through all retries, allowing for verification of failure handling paths.
-*   **Atomic Data Integrity**: Leverages database transactions to guarantee that success, failure, and total counts remain accurate at all times.
+To make testing safe and easy, it sends the emails to a **fake mailbox** on your computer. This means you can see the emails, read them, and check their layout without actually sending real spam emails to real people!
 
 ---
 
-##  Tech Stack
+## 🌟 What makes this project cool?
 
-| Technology | Purpose |
-
-| **Next.js** | API Layer & Orchestration |
-| **PostgreSQL** | Persistent Data Storage (Jobs & Emails) |
-| **Redis & BullMQ** | High-performance Distributed Queue Management |
-| **Prisma** | Modern Type-safe Database ORM |
-| **Docker** | One-click Containerized Deployment |
+*   **Beautiful Dashboard**: A clean web page where you paste emails, dispatch them, and track your history.
+*   **Live Progress Chart**: A visual circular chart (donut gauge) that updates live, showing how many emails succeeded (Green), failed (Red), or are still waiting.
+*   **Fake Inbox (Mailpit)**: A separate webpage that acts like a mock Gmail. Every email sent from this app lands instantly in this local mailbox so you can read and inspect them.
+*   **Smart Retry System**: If an email fails to send, the system doesn't give up! It automatically waits and retries up to 4 times. (For testing, every 5th email is programmed to fail on purpose so you can watch this retry system work).
+*   **Download Reports**: You can download a spreadsheet (.csv) summary of how many emails succeeded or failed once the dispatch is done.
+*   **Search & Filter**: You can search through your past runs in the history list or filter them by status (active, completed, failed).
 
 ---
-##  Queue Design & Data Structures
 
-We use BullMQ, which internally relies on Redis data structures.
+## 🗺️ Step-by-Step Guide: How to run and use it
 
-- **Queue (FIFO)**:
-  Jobs are processed in First-In-First-Out order using Redis Lists.
-  
-- **Delayed Jobs**:
-  Retries with backoff are managed using Redis Sorted Sets (ZSET),
-  where jobs are scheduled based on timestamps.
+You do not need to install databases or coding tools. The entire project runs inside a container system called **Docker**. 
 
-- **Concurrency Control**:
-  Worker pulls limited jobs (3 at a time), ensuring controlled parallel execution.
-
-- **Retry Handling**:
-  Failed jobs are re-queued with delay, preserving order and retry count metadata.
-
-## Why Redis Queue?
-- In-memory queues lose data on crash
-- Redis ensures persistence and reliability
-
-## Why BullMQ?
-- Built-in retry, backoff, and job management
-- Avoids building custom queue system
-
-## Job States
-- waiting → active → completed / failed
-- Enables tracking and monitoring
-
-##  Getting Started
-
-The system is designed with a **"container-first"** philosophy. You only need **Docker** installed.
-
-### 1. Initialize & Start
-In your terminal, navigate to the project directory and run:
-
+### 1. Start the Application
+Open your terminal inside the project folder and run:
 ```bash
-docker compose up --build
+docker compose up --build -d
 ```
-> [!NOTE]
-> This command orchestrates the entire stack: Database, Redis, Next.js API, and the Background Worker.
+*(This starts the database, the queues, the mock mailbox, and the webpage automatically).*
+
+### 2. Open the Webpages
+Open your internet browser and open these two tabs:
+1.  **The Dispatcher Webpage**: Go to [http://localhost:3000](http://localhost:3000)
+2.  **The Fake Mailbox**: Go to [http://localhost:8025](http://localhost:8025) (This is where your emails will land).
+
+### 3. Send a Batch & Monitor
+1.  On the Dispatcher webpage (`localhost:3000`), paste some email addresses in the box on the right. E.g.:
+    `test1@gmail.com, test2@domain.com, test3@org.com, test4@mail.net, test5@abc.com`
+2.  Click **Dispatch Emails**.
+3.  The screen will change immediately to show your **Active Job Monitor**. Watch the metrics and the circular donut chart fill up as emails are sent!
+4.  Switch over to your Fake Mailbox tab (`localhost:8025`). You will see the emails appearing in the inbox. Click on any email to view the beautiful summary letter inside!
+5.  Once done, click **Export CSV Report** to download the spreadsheet data.
 
 ---
 
-##  Testing the Dispatcher
+## 🧠 How it works behind the scenes 
 
-Once the services are active, use the following commands in a new terminal to interact with the system.
+Here is exactly what happens from the moment you click "Send" to the moment the emails land in your inbox:
 
-### 1. Dispatch a Bulk Job
-Send a POST request to initiate a batch of email processing:
+### Step 1: Writing the plan in the notebook (The Webpage & Database)
+When you paste your list of emails and click **Dispatch Emails**, the webpage (Next.js) instantly takes action:
+* It creates a "Batch Job" entry in our digital notebook (the PostgreSQL Database).
+* It registers the total number of emails you typed in and creates a separate pending task sheet for each individual address.
 
-```bash
-curl -X POST http://localhost:3000/api/send-bulk \
-     -H "Content-Type: application/json" \
-     -d '{"emails": ["user1@ex.com", "user2@ex.com", "user3@ex.com", "user4@ex.com", "user5@ex.com", "user6@ex.com"]}'
-```
-*Wait for the response to receive your unique **`jobId`**.*
+### Step 2: Standing in a single-file line (The Queue)
+To make sure your computer doesn't crash or freeze under heavy work, we do not try to send all emails at the exact same millisecond. Instead, the webpage places the emails into a neat waiting line (the Queue, managed by Redis and BullMQ). Think of it like customers waiting in a single-file line at a bank counter.
 
-### 2. Verify Job Status
-Monitor the real-time progress of your job:
+### Step 3: The Helper starts delivering (The Background Worker)
+We have a separate helper program (the Background Worker) whose only job is to stand at the front of the line:
+* The helper only processes **up to 3 emails at a time** (our speed limit) to ensure things run smoothly.
+* For each email, it marks its status as "Processing" in our database notebook, packages the email, and attempts to send it.
 
-```bash
-curl http://localhost:3000/api/job-status/<YOUR_JOB_ID>
-```
-*Displays current success, failure, and pending counts.*
+### Step 4: What happens during roadblocks? (Smart Retries)
+If an email fails to deliver (like every 5th email in our simulation):
+* The helper doesn't give up. It logs a warning and puts the email back into the queue.
+* To avoid spamming a broken system, the queue makes the email wait progressively longer before trying again (**1 second, then 2 seconds, then 4 seconds**).
+* If the email fails **4 times in total** (the initial try + 3 retries), the helper writes "Failed" in the database notebook and moves on.
 
-### 3. Observe the Worker
-Monitor the background processing logs in real-time:
+### Step 5: Catching the letters (The Fake Mailbox)
+When the helper sends the email, it targets our local **Mailpit** service. Mailpit acts like a bucket that catches every email. It saves them locally so that when you open `localhost:8025`, you see your HTML messages.
 
-```bash
-docker compose logs -f worker
-```
+### Step 6: Showing you the progress
+While all this background work is happening, the webpage checks our database notebook every **1.5 seconds** (polling). It reads the latest success and failure counts, and dynamically updates the circular chart and stats on your screen so you can watch it live!
 
 ---
-
-##  Pro-Tips
-
-- **Environment**: No local Node.js or PostgreSQL installation is required; the entire environment is isolated within Docker.
-*   **Troubleshooting**: If your IDE reports TypeScript errors, simply restart the TS server (Ctrl+Shift+P > *Restart TS Server*).
-*   **Architecture**: This is a production-pattern simulation focusing on queue management, retry strategies, and data consistency rather than actual SMTP delivery.

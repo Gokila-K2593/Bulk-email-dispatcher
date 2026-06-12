@@ -1,9 +1,18 @@
 import { Worker, Job as BullMQJob } from 'bullmq';
 import { PrismaClient } from '@prisma/client';
 import { connection } from './queue';
+import nodemailer from 'nodemailer';
 import 'dotenv/config';
 
 const prisma = new PrismaClient();
+
+// Configure SMTP transporter targeting Mailpit
+const transporter = nodemailer.createTransport({
+  host: process.env.SMTP_HOST || 'localhost',
+  port: parseInt(process.env.SMTP_PORT || '1025'),
+  secure: false,
+  ignoreTLS: true, // Mailpit doesn't mandate TLS by default
+});
 
 interface EmailJobData {
   jobId: string;
@@ -53,8 +62,42 @@ export const emailWorker = new Worker<EmailJobData>(
       throw new Error("Simulated Failure");
     }
 
-    // SIMULATED EMAIL SENDING LOGIC
-    await new Promise((resolve) => setTimeout(resolve, 500));
+    // Real SMTP delivery via Mailpit
+    await transporter.sendMail({
+      from: '"Bulk Email Dispatcher" <noreply@dispatcher.local>',
+      to: recipient,
+      subject: `[BATCH] Email #${emailIndex} - Job ${jobId.substring(0, 8)}`,
+      text: `Hi,\n\nThis is a simulated email processed through our background queue.\n\nJob ID: ${jobId}\nEmail ID: ${emailId}\nIndex: ${emailIndex}\nAttempt: ${attempt} / 4\n\nThanks!`,
+      html: `
+        <div style="font-family: sans-serif; padding: 24px; background-color: #f8fafc; color: #0f172a; max-width: 600px; border-radius: 12px; border: 1px solid #e2e8f0; margin: 0 auto;">
+          <h2 style="color: #4f46e5; margin-bottom: 8px;">📧 Bulk Email Dispatcher</h2>
+          <p style="color: #475569; font-size: 14px; margin-bottom: 24px;">Your background job has successfully processed this email delivery simulation.</p>
+          
+          <table style="width: 100%; border-collapse: collapse; margin-bottom: 24px; font-size: 14px;">
+            <tr style="border-bottom: 1px solid #e2e8f0;">
+              <td style="padding: 10px 0; font-weight: 600; color: #475569; width: 120px;">Recipient</td>
+              <td style="padding: 10px 0; font-weight: 500;">${recipient}</td>
+            </tr>
+            <tr style="border-bottom: 1px solid #e2e8f0;">
+              <td style="padding: 10px 0; font-weight: 600; color: #475569;">Job ID</td>
+              <td style="padding: 10px 0; font-family: monospace; color: #6366f1;">${jobId}</td>
+            </tr>
+            <tr style="border-bottom: 1px solid #e2e8f0;">
+              <td style="padding: 10px 0; font-weight: 600; color: #475569;">Email Index</td>
+              <td style="padding: 10px 0;">#${emailIndex}</td>
+            </tr>
+            <tr style="border-bottom: 1px solid #e2e8f0;">
+              <td style="padding: 10px 0; font-weight: 600; color: #475569;">Attempt</td>
+              <td style="padding: 10px 0;">${attempt} / 4</td>
+            </tr>
+          </table>
+
+          <div style="font-size: 11px; color: #94a3b8; text-align: center; border-top: 1px solid #e2e8f0; padding-top: 16px;">
+            Sent by Bulk Email Dispatcher • Background Worker Node
+          </div>
+        </div>
+      `,
+    });
 
     // ON SUCCESS: Atomic transaction for data consistency
     console.log(`[WORKER] [JOB:${jobId}] [EMAIL:${emailId}] [ATTEMPT:${attempt}] - Email successfully sent`);

@@ -20,6 +20,10 @@ export default function Home() {
   const [activeJobDetails, setActiveJobDetails] = useState<JobSummary | null>(null);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
   
+  // Search and Filter States
+  const [searchQuery, setSearchQuery] = useState('');
+  const [statusFilter, setStatusFilter] = useState<'ALL' | 'PROCESSING' | 'COMPLETED' | 'FAILED'>('ALL');
+  
   const pollingIntervalRef = useRef<NodeJS.Timeout | null>(null);
 
   // Load history from localStorage on mount
@@ -203,6 +207,44 @@ export default function Home() {
     setErrorMsg(null);
   };
 
+  // CSV Export
+  const handleExportCSV = () => {
+    if (!activeJobDetails) return;
+    const { id, status, total, success, failed, processed } = activeJobDetails;
+    
+    const headers = ['Job ID', 'Status', 'Total Emails', 'Successful', 'Failed', 'Pending', 'Completion Ratio'];
+    const row = [
+      id,
+      status,
+      total,
+      success,
+      failed,
+      total - processed,
+      total > 0 ? `${Math.round((processed / total) * 100)}%` : '0%'
+    ];
+    
+    const csvContent = [
+      headers.join(','),
+      row.map(val => `"${val}"`).join(',')
+    ].join('\n');
+    
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.setAttribute('download', `dispatch-${id.substring(0, 8)}-report.csv`);
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  };
+
+  // Filter local history based on inputs
+  const filteredHistoryJobs = historyJobs.filter(job => {
+    const matchesSearch = job.id.toLowerCase().includes(searchQuery.toLowerCase());
+    const matchesStatus = statusFilter === 'ALL' || job.status === statusFilter;
+    return matchesSearch && matchesStatus;
+  });
+
   // Progress Bar Width computations
   const total = activeJobDetails?.total || 0;
   const successCount = activeJobDetails?.success || 0;
@@ -212,9 +254,24 @@ export default function Home() {
   const successWidth = total > 0 ? (successCount / total) * 100 : 0;
   const failedWidth = total > 0 ? (failedCount / total) * 100 : 0;
 
+  // Donut SVG parameters
+  const radius = 40;
+  const circumference = 2 * Math.PI * radius; // ~251.2
+  
+  const successFraction = total > 0 ? successCount / total : 0;
+  const failedFraction = total > 0 ? failedCount / total : 0;
+  const completionPercentage = total > 0 ? Math.round((processedCount / total) * 100) : 0;
+
+  const strokeDasharray = `${circumference}`;
+  const successStrokeDashoffset = circumference - (successFraction * circumference);
+  const failedStrokeDashoffset = circumference - (failedFraction * circumference);
+
+  // Rotation calculations to stack segments
+  const successAngle = successFraction * 360;
+
   return (
     <div className="dashboard-container">
-      {/* Sidebar: Navigation, Action button, and Recent Runs history list */}
+      {/* Sidebar: Navigation, Action button, Search, Filters, and Recent Runs list */}
       <aside className="sidebar">
         <div className="sidebar-header">
           <div className="sidebar-logo">
@@ -244,7 +301,7 @@ export default function Home() {
           </button>
         </div>
 
-        {/* History List */}
+        {/* History Area with Search & Filters */}
         <div className="sidebar-history">
           <div className="sidebar-history-title">
             <span>Recent Batches</span>
@@ -266,17 +323,59 @@ export default function Home() {
             )}
           </div>
 
-          {historyJobs.length === 0 ? (
+          {/* Search Inputs */}
+          {historyJobs.length > 0 && (
+            <>
+              <input
+                type="text"
+                className="search-input"
+                placeholder="Search by Job ID..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+              />
+              <div className="filter-group">
+                <button 
+                  className={`filter-btn ${statusFilter === 'ALL' ? 'active' : ''}`}
+                  onClick={() => setStatusFilter('ALL')}
+                >
+                  All
+                </button>
+                <button 
+                  className={`filter-btn ${statusFilter === 'PROCESSING' ? 'active' : ''}`}
+                  onClick={() => setStatusFilter('PROCESSING')}
+                >
+                  Active
+                </button>
+                <button 
+                  className={`filter-btn ${statusFilter === 'COMPLETED' ? 'active' : ''}`}
+                  onClick={() => setStatusFilter('COMPLETED')}
+                >
+                  Done
+                </button>
+                <button 
+                  className={`filter-btn ${statusFilter === 'FAILED' ? 'active' : ''}`}
+                  onClick={() => setStatusFilter('FAILED')}
+                >
+                  Failed
+                </button>
+              </div>
+            </>
+          )}
+
+          {/* History List */}
+          {filteredHistoryJobs.length === 0 ? (
             <div className="section-empty" style={{ padding: '2rem 1rem' }}>
               <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
                 <path d="M12 8v4l3 3"/>
                 <circle cx="12" cy="12" r="10"/>
               </svg>
-              <p style={{ fontSize: '0.75rem' }}>No history yet</p>
+              <p style={{ fontSize: '0.75rem' }}>
+                {historyJobs.length === 0 ? 'No history yet' : 'No matches found'}
+              </p>
             </div>
           ) : (
             <div className="history-list">
-              {historyJobs.map((job) => {
+              {filteredHistoryJobs.map((job) => {
                 const isActive = job.id === activeJobId;
                 const formattedPercent = job.total > 0 ? Math.round(((job.success + job.failed) / job.total) * 100) : 0;
                 
@@ -311,7 +410,7 @@ export default function Home() {
         </div>
       </aside>
 
-      {/* Main Workspace: dynamically changes depending on whether activeJobId is selected */}
+      {/* Main Workspace */}
       <main className="main-workspace">
         <div className="workspace-content">
           
@@ -381,29 +480,85 @@ export default function Home() {
                     </div>
                   </div>
 
-                  <div className="metrics-grid">
-                    <div className="metric-card">
-                      <div className="metric-label">Total</div>
-                      <div className="metric-value">{total}</div>
+                  {/* Split Monitor Layout (Metrics Grid and Donut Chart side-by-side) */}
+                  <div className="monitor-layout">
+                    <div className="monitor-metrics">
+                      <div className="metrics-grid">
+                        <div className="metric-card">
+                          <div className="metric-label">Total</div>
+                          <div className="metric-value">{total}</div>
+                        </div>
+                        <div className="metric-card processing">
+                          <div className="metric-label">Pending</div>
+                          <div className="metric-value">{total - processedCount}</div>
+                        </div>
+                        <div className="metric-card success">
+                          <div className="metric-label">Success</div>
+                          <div className="metric-value">{successCount}</div>
+                        </div>
+                        <div className="metric-card failed">
+                          <div className="metric-label">Failed</div>
+                          <div className="metric-value">{failedCount}</div>
+                        </div>
+                      </div>
                     </div>
-                    <div className="metric-card processing">
-                      <div className="metric-label">Pending</div>
-                      <div className="metric-value">{total - processedCount}</div>
-                    </div>
-                    <div className="metric-card success">
-                      <div className="metric-label">Success</div>
-                      <div className="metric-value">{successCount}</div>
-                    </div>
-                    <div className="metric-card failed">
-                      <div className="metric-label">Failed</div>
-                      <div className="metric-value">{failedCount}</div>
+
+                    {/* Donut Chart Viewport */}
+                    <div className="donut-chart-wrapper">
+                      <svg width="120" height="120">
+                        {/* Background track circle */}
+                        <circle
+                          className="donut-ring"
+                          strokeWidth="8"
+                          fill="transparent"
+                          r={radius}
+                          cx="60"
+                          cy="60"
+                        />
+                        {/* Success slice */}
+                        {successFraction > 0 && (
+                          <circle
+                            className="donut-segment-success"
+                            strokeWidth="8"
+                            fill="transparent"
+                            r={radius}
+                            cx="60"
+                            cy="60"
+                            strokeDasharray={strokeDasharray}
+                            strokeDashoffset={successStrokeDashoffset}
+                          />
+                        )}
+                        {/* Failed slice */}
+                        {failedFraction > 0 && (
+                          <circle
+                            className="donut-segment-failed"
+                            strokeWidth="8"
+                            fill="transparent"
+                            r={radius}
+                            cx="60"
+                            cy="60"
+                            strokeDasharray={strokeDasharray}
+                            strokeDashoffset={failedStrokeDashoffset}
+                            style={{
+                              transform: `rotate(${-90 + successAngle}deg)`,
+                              transformOrigin: '60px 60px'
+                            }}
+                          />
+                        )}
+                      </svg>
+                      {/* Percent Overlay text */}
+                      <div className="donut-chart-info">
+                        <div className="donut-percent">{completionPercentage}%</div>
+                        <div className="donut-label">Done</div>
+                      </div>
                     </div>
                   </div>
 
+                  {/* Linear stacked fallback bar */}
                   <div className="progress-container">
                     <div className="progress-label-row">
-                      <span>Dispatch Progress</span>
-                      <span>{processedCount} / {total} ({total > 0 ? Math.round((processedCount / total) * 100) : 0}%)</span>
+                      <span>Linear Progress Distribution</span>
+                      <span>{processedCount} / {total} processed</span>
                     </div>
                     <div className="progress-bar-wrapper">
                       <div 
@@ -428,10 +583,21 @@ export default function Home() {
                     </div>
                   )}
 
-                  <div style={{ marginTop: '2rem', display: 'flex', gap: '1rem' }}>
-                    <button className="btn" onClick={handleNewBatchClick} style={{ background: '#f1f5f9', color: 'var(--text-primary)', border: '1px solid var(--border-color)' }}>
+                  {/* Operational controls */}
+                  <div style={{ marginTop: '2rem', display: 'flex', gap: '0.75rem', flexWrap: 'wrap' }}>
+                    <button className="btn-secondary" onClick={handleNewBatchClick}>
                       Back to Creator
                     </button>
+                    {(activeJobDetails.status === 'COMPLETED' || activeJobDetails.status === 'FAILED') && (
+                      <button className="btn" onClick={handleExportCSV} style={{ width: 'auto' }}>
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" style={{ marginRight: '4px' }}>
+                          <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+                          <polyline points="7 10 12 15 17 10"/>
+                          <line x1="12" y1="15" x2="12" y2="3"/>
+                        </svg>
+                        Export CSV Report
+                      </button>
+                    )}
                   </div>
                 </div>
               )}
