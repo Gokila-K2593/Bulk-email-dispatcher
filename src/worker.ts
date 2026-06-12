@@ -91,7 +91,7 @@ export const emailWorker = new Worker<EmailJobData>(
     return { success: true };
   },
   {
-    connection,
+    connection: connection as any,
     concurrency: 3,
   }
 );
