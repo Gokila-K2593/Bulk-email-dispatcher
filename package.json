@@ -1,0 +1,33 @@
+{
+  "name": "bulk-email-dispatcher",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "scripts": {
+    "dev": "next dev",
+    "build": "tsc && next build",
+    "start": "next start",
+    "worker": "node dist/worker.js",
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "@prisma/client": "^5.22.0",
+    "bullmq": "^5.17.1",
+    "dotenv": "^17.3.1",
+    "ioredis": "^5.3.2",
+    "next": "^14.2.5",
+    "react": "^18.2.0",
+    "react-dom": "^18.2.0",
+    "tsx": "^4.7.0"
+  },
+  "devDependencies": {
+    "@types/node": "^20.11.0",
+    "@types/react": "^18.2.0",
+    "@types/react-dom": "^18.2.0",
+    "prisma": "^5.22.0",
+    "typescript": "^5.0.0"
+  }
+}
