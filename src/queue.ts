@@ -15,7 +15,7 @@ export const connection = new IORedis({
  * - Exponential backoff (1s, 2s, 4s)
  */
 export const emailQueue = new Queue('bulk-email-dispatches', {
-  connection,
+  connection: connection as any,
   defaultJobOptions: {
     attempts: 4,
     backoff: {

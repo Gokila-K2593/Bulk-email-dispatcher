@@ -37,7 +37,7 @@ services:
     environment:
       - REDIS_HOST=redis
       - DATABASE_URL=postgresql://user:password@db:5432/bulk_email_db?schema=public
-    command: node dist/src/worker.js
+    command: npm run worker
 
 volumes:
   postgres_data:
