@@ -1,0 +1,6 @@
+{
+  "/_not-found/page": "app/_not-found/page.js",
+  "/page": "app/page.js",
+  "/api/send-bulk/route": "app/api/send-bulk/route.js",
+  "/api/job-status/[jobId]/route": "app/api/job-status/[jobId]/route.js"
+}
