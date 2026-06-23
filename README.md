@@ -1,4 +1,4 @@
-# 📧 Bulk Email Dispatcher
+#  Bulk Email Dispatcher
 
 This project is a **Bulk Email Sender Simulator**. It is a tool designed to let you paste a large list of email addresses, "send" emails to all of them, and watch the sending progress update live on a dashboard. 
 
@@ -6,7 +6,7 @@ To make testing safe and easy, it sends the emails to a **fake mailbox** on your
 
 ---
 
-## 🌟 What makes this project cool?
+##  What makes this project cool?
 
 *   **Beautiful Dashboard**: A clean web page where you paste emails, dispatch them, and track your history.
 *   **Live Progress Chart**: A visual circular chart (donut gauge) that updates live, showing how many emails succeeded (Green), failed (Red), or are still waiting.
@@ -17,7 +17,7 @@ To make testing safe and easy, it sends the emails to a **fake mailbox** on your
 
 ---
 
-## 🗺️ Step-by-Step Guide: How to run and use it
+##  Step-by-Step Guide: How to run and use it
 
 You do not need to install databases or coding tools. The entire project runs inside a container system called **Docker**. 
 
@@ -43,7 +43,7 @@ Open your internet browser and open these two tabs:
 
 ---
 
-## 🧠 How it works behind the scenes 
+##  How it works behind the scenes 
 
 Here is exactly what happens from the moment you click "Send" to the moment the emails land in your inbox:
 
